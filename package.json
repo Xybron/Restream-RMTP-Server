@@ -1,0 +1,13 @@
+{
+  "name": "rtmp-server",
+  "version": "1.0.0",
+  "description": "RTMP Server with multi-platform streaming capabilities",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "node-media-server": "^2.6.2",
+    "express": "^4.18.2"
+  }
+}

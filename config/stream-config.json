@@ -1,0 +1,12 @@
+{
+    "facebook": {
+        "enabled": true,
+        "rtmpUrl": "rtmps://live-api-s.facebook.com:443/rtmp/",
+        "streamKey": "FB-9231808220176654-0-AbwmA3HkcDOKlKtB"
+    },
+    "youtube": {
+        "enabled": true,
+        "rtmpUrl": "rtmp://a.rtmp.youtube.com/live2/",
+        "streamKey": "149g-hy1s-de5p-m1a8-frs7"
+    }
+}

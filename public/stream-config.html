@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stream Configuration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .platform-config {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .key-input-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        .key-input-container input {
+            padding-right: 35px;
+        }
+        .toggle-visibility {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+        }
+        .toggle-visibility:hover {
+            color: #333;
+        }
+        .has-key-indicator {
+            display: inline-block;
+            margin-left: 10px;
+            color: #4CAF50;
+        }
+        .platform-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .platform-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+        }
+        .status-indicator {
+            margin-left: auto;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status-disabled {
+            background-color: #ffebee;
+            color: #d32f2f;
+        }
+        .status-connected {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #1976d2;
+        }
+        .nav-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #2196f3;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+        .nav-link:hover {
+            background-color: #1976d2;
+        }
+        .nav-container {
+            text-align: right;
+            margin-top: 20px;
+        }
+        .save-message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .save-success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .save-error {
+            background-color: #ffebee;
+            color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-container">
+            <a href="/" class="nav-link">Back to Stream</a>
+        </div>
+
+        <h1>Stream Configuration</h1>
+        
+        <div class="platform-config">
+            <h2>Facebook Live</h2>
+            <div class="key-input-container">
+                <input type="password" id="facebook-key" placeholder="Enter Facebook Stream Key">
+                <button type="button" class="toggle-visibility" onclick="toggleVisibility('facebook-key')">
+                    <span id="facebook-key-icon">👁️</span>
+                </button>
+                <span id="facebook-key-indicator" class="has-key-indicator" style="display: none">✓ Key Set</span>
+            </div>
+            <button onclick="updateConfig('facebook')">Save Facebook Configuration</button>
+            <div id="facebook-save-message" class="save-message" style="display: none;"></div>
+        </div>
+
+        <div class="platform-config">
+            <h2>YouTube Live</h2>
+            <div class="key-input-container">
+                <input type="password" id="youtube-key" placeholder="Enter YouTube Stream Key">
+                <button type="button" class="toggle-visibility" onclick="toggleVisibility('youtube-key')">
+                    <span id="youtube-key-icon">👁️</span>
+                </button>
+                <span id="youtube-key-indicator" class="has-key-indicator" style="display: none">✓ Key Set</span>
+            </div>
+            <button onclick="updateConfig('youtube')">Save YouTube Configuration</button>
+            <div id="youtube-save-message" class="save-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Load current configuration
+        fetch('/api/stream-config')
+            .then(response => response.json())
+            .then(config => {
+                Object.keys(config).forEach(platform => {
+                    if (config[platform].enabled) {
+                        document.getElementById(`${platform}-key-indicator`).style.display = 'inline-block';
+                        updateStatus(platform, config[platform].status);
+                    }
+                });
+            });
+
+        function updateStatus(platform, status) {
+            const statusElement = document.getElementById(`${platform}-status`);
+            if (statusElement) {
+                statusElement.textContent = status;
+                statusElement.className = `status-indicator status-${status.toLowerCase()}`;
+            }
+        }
+
+        function toggleVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(`${inputId}-icon`);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.textContent = '🔒';
+            } else {
+                input.type = 'password';
+                icon.textContent = '👁️';
+            }
+        }
+
+        function showSaveMessage(platform, success, message) {
+            const messageElement = document.getElementById(`${platform}-save-message`);
+            messageElement.textContent = message;
+            messageElement.className = `save-message ${success ? 'save-success' : 'save-error'}`;
+            messageElement.style.display = 'block';
+            
+            if (success) {
+                // Update status immediately on success
+                updateStatus(platform, 'Connected');
+                document.getElementById(`${platform}-key-indicator`).style.display = 'inline-block';
+            }
+            
+            setTimeout(() => {
+                messageElement.style.display = 'none';
+            }, 3000);
+        }
+
+        async function updateConfig(platform) {
+            const streamKey = document.getElementById(`${platform}-key`).value;
+            
+            if (!streamKey) {
+                showSaveMessage(platform, false, 'Please enter a stream key');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/update-stream-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        platform,
+                        streamKey
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showSaveMessage(platform, true, 'Configuration saved successfully!');
+                    // Refresh the configuration display
+                    fetch('/api/stream-config')
+                        .then(response => response.json())
+                        .then(config => {
+                            updateStatus(platform, config[platform].status);
+                        });
+                } else {
+                    showSaveMessage(platform, false, data.error || 'Failed to save configuration');
+                }
+            } catch (error) {
+                showSaveMessage(platform, false, 'Error saving configuration');
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

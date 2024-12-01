@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Stream Viewer</title>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/hls-video-element@1.1/+esm"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-box {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .stream-info {
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .restream-platforms {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .nav-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #2196f3;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+        .nav-link:hover {
+            background-color: #1976d2;
+        }
+        .nav-container {
+            text-align: right;
+            margin-top: 20px;
+        }
+        hls-video {
+            width: 100%;
+            max-width: 720px;
+            margin: 0 auto;
+            display: block;
+        }
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+        .live-indicator:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+            background-color: #cccccc;
+            transition: background-color 0.3s ease;
+        }
+        .live-dot.active {
+            background-color: #ff0000;
+        }
+        .live-text {
+            color: #666666;
+            transition: color 0.3s ease;
+        }
+        .live-text.active {
+            color: #ff0000;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 720px;
+            margin: 0 auto;
+        }
+        .controls-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 10px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.7));
+            color: white;
+            z-index: 1;
+        }
+        .platform-indicator {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 15px;
+            padding: 8px 12px;
+            background-color: #e9ecef;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .platform-indicator.active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .platform-indicator img {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-container">
+            <a href="/stream-config.html" class="nav-link">Stream Settings</a>
+        </div>
+        
+        <h1>Live Stream Viewer</h1>
+        
+        <div class="video-container">
+            <hls-video 
+                id="videoPlayer"
+                controls 
+                autoplay 
+                src="http://localhost:3500/media/live/stream1/index.m3u8"
+                muted
+                playsinline>
+            </hls-video>
+            <div class="controls-overlay">
+                <div class="live-indicator">
+                    <span class="live-dot"></span>
+                    <span class="live-text">LIVE</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-box">
+            <h3>Stream Status: <span id="stream-status">Checking...</span></h3>
+        </div>
+
+        <div class="stream-info">
+            <h3>Stream Information:</h3>
+            <p>RTMP URL: rtmp://localhost:1936/live</p>
+            <p>Stream Key: stream1</p>
+        </div>
+
+        <div class="restream-platforms">
+            <h3>Restreaming to:</h3>
+            <div id="platform-indicators">
+                <div class="platform-indicator" id="facebook-indicator" style="display: none">
+                    <img src="https://www.facebook.com/favicon.ico" alt="Facebook">
+                    Facebook Live
+                </div>
+                <div class="platform-indicator" id="youtube-indicator" style="display: none">
+                    <img src="https://www.youtube.com/favicon.ico" alt="YouTube">
+                    YouTube Live
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const video = document.querySelector('#videoPlayer');
+            const liveDot = document.querySelector('.live-dot');
+            const liveText = document.querySelector('.live-text');
+            const liveIndicator = document.querySelector('.live-indicator');
+            const streamStatus = document.querySelector('#stream-status');
+            
+            // Larger threshold for live status (5 seconds)
+            const LIVE_THRESHOLD = 5;
+
+            // Update stream status
+            function updateStreamStatus(status, color = 'inherit') {
+                streamStatus.textContent = status;
+                streamStatus.style.color = color;
+            }
+            
+            // Check if stream is at live edge
+            function checkLiveStatus() {
+                if (!video.seekable || video.seekable.length === 0) return;
+                
+                const seekableEnd = video.seekable.end(video.seekable.length - 1);
+                const currentTime = video.currentTime;
+                const timeDiff = seekableEnd - currentTime;
+                
+                // Consider live if within threshold of the end
+                const isLive = timeDiff <= LIVE_THRESHOLD;
+                
+                liveDot.classList.toggle('active', isLive);
+                liveText.classList.toggle('active', isLive);
+            }
+
+            // Jump to live edge
+            function jumpToLive() {
+                if (!video.seekable || video.seekable.length === 0) return;
+                
+                const seekableEnd = video.seekable.end(video.seekable.length - 1);
+                // Set time slightly before the end to prevent overshooting
+                video.currentTime = seekableEnd - 0.5;
+            }
+
+            // Event handlers for stream status
+            video.addEventListener('loadstart', () => updateStreamStatus('Connecting...', '#ffa500'));
+            video.addEventListener('waiting', () => updateStreamStatus('Buffering...', '#ffa500'));
+            video.addEventListener('playing', () => updateStreamStatus('Live', '#00c853'));
+            video.addEventListener('pause', () => updateStreamStatus('Paused', '#ffa500'));
+            video.addEventListener('error', () => {
+                const error = video.error;
+                let errorMessage = 'Stream Error';
+                if (error) {
+                    switch (error.code) {
+                        case 1: errorMessage = 'Stream Aborted'; break;
+                        case 2: errorMessage = 'Network Error'; break;
+                        case 3: errorMessage = 'Decode Error'; break;
+                        case 4: errorMessage = 'Stream Not Found'; break;
+                    }
+                }
+                updateStreamStatus(errorMessage, '#ff0000');
+            });
+
+            // Check stream status periodically
+            setInterval(() => {
+                if (video.readyState < 3) {
+                    updateStreamStatus('Buffering...', '#ffa500');
+                }
+            }, 2000);
+
+            // Click handler for live indicator
+            liveIndicator.addEventListener('click', jumpToLive);
+
+            // Update live status periodically
+            setInterval(checkLiveStatus, 1000);
+
+            // Update on video events
+            video.addEventListener('timeupdate', checkLiveStatus);
+            video.addEventListener('progress', checkLiveStatus);
+            video.addEventListener('playing', checkLiveStatus);
+
+            // Update platform indicators
+            function updatePlatformIndicators() {
+                fetch('/api/stream-config')
+                    .then(response => response.json())
+                    .then(config => {
+                        const fbIndicator = document.getElementById('facebook-indicator');
+                        const ytIndicator = document.getElementById('youtube-indicator');
+                        
+                        fbIndicator.style.display = config.facebook.enabled ? 'inline-flex' : 'none';
+                        fbIndicator.className = `platform-indicator ${config.facebook.status === 'Connected' ? 'active' : ''}`;
+                        
+                        ytIndicator.style.display = config.youtube.enabled ? 'inline-flex' : 'none';
+                        ytIndicator.className = `platform-indicator ${config.youtube.status === 'Connected' ? 'active' : ''}`;
+                    });
+            }
+
+            // Update indicators periodically
+            updatePlatformIndicators();
+            setInterval(updatePlatformIndicators, 5000);
+        });
+    </script>
+</body>
+</html>
